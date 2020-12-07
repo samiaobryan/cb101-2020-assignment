@@ -1,0 +1,171 @@
+---
+title: "Assignment_3"
+author: "Samia OBryan"
+date: "12/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Problem 1
+##Download data
+```{r engine="bash"}
+wget -q ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/proteomes/9606.tsv.gz
+gunzip 9606.tsv.gz
+```
+
+##Rscript 
+```{r}
+PFAMtable <- read.table("9606.tsv")
+names(PFAMtable) <- c("seq_id", "alignment_start", "alignment_end", "envelope_start", "envelope_end", "hmm_acc", "hmm_name", "type", "hmm_start", "hmm_end", "hmm_length", "bit_score", "E-value", "clan")
+
+seq_id <- PFAMtable$seq_id
+envelope_s <- PFAMtable$envelope_start
+envelope_e <- PFAMtable$envelope_end
+hmm_name <- PFAMtable$hmm_name
+type <- PFAMtable$type
+
+#was able to call the hmm_name based on seq_id input
+Dom_name <- setNames(as.list(envelope_s:envelope_e), seq_id)
+Dom_name$A0A024QZ18 
+
+#Now need to specify the parameters before output...got stuck here
+#Dom_name <- function () {setNames(as.list(envelope_s:envelope_e), seq_id),  
+}
+
+
+
+```
+
+#Problem 2
+```{r}
+r <- read.table(
+"ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/variants/humsavar.txt", header = F, skip = 49, sep = "", fill = T, stringsAsFactors = F, flush = T, nrows=78710)
+r <- r[, -ncol(r)]
+r
+
+#first get the frequency for each r_domain in a table
+library(dplyr)
+r2 <- r %>% 
+  group_by(V2) %>% 
+  mutate(frequency = n()) %>%
+  select(V2, frequency) %>%
+  distinct()
+print(r2)
+
+#rename
+names(r2) <- c("hmm_acc", "variation_freq")
+
+
+#pull specific columns from PFAM (subset)
+PFAM2 <- PFAMtable %>% 
+  select(seq_id, hmm_name)
+print(PFAM2)
+
+#Combine tables, matching hmm_acc with r_domain (merge)
+dfmerge <- left_join(r2, PFAM2, by=c("hmm_acc" = "seq_id"))
+print(dfmerge)
+dfmerge_new <- dfmerge[c(2, 3)]
+dfmerge_new <- dfmerge_new[,c(ncol(dfmerge_new),1:(ncol(dfmerge_new)-1))]
+
+#Order frequency in descending order
+dfmerge_ordered <- dfmerge_new[order(dfmerge_new$variation_freq, decreasing = TRUE),]
+
+write.csv(dfmerge_ordered, "dfmerge_ordered.csv", row.names = FALSE)
+```
+
+#Problem 3
+```{r}
+#first column is gene, 5th column describes it (disease)
+#pull all disease variants into a new file (table)
+library(tidyr)
+library(dplyr)
+library(stringr)
+
+variants <- read.delim(file = "humsavar.txt", skip = 49, header = FALSE, sep = '\t')
+vdf <- data.frame(variants)
+vdf2 <- separate(data = vdf,col = V1, into = c("Main_gene_name", "Swiss-Prot_AC", "FTId", "AA_change", "Type_of_variant", "dbSNP", "Disease_name", sep = "\t")
+         )
+# ok...weird, separated on . and _ and I can't figure out how to fix this
+
+#Pulling the columns I want
+vdf3 <- vdf2 %>% 
+  select(Main_gene_name, Disease_name) %>%
+  rename(Type_of_variant = Disease_name)
+print(vdf3)
+```
+
+##Probelm 3a
+```{r}
+#subset all disease variants
+vdfdisease <- subset(vdf3, Type_of_variant=="Disease")
+
+#frequency of genes in dataset
+vdfdisvarfreq <- vdfdisease %>% 
+  group_by(Main_gene_name) %>% 
+  mutate(frequency = n()) %>%
+  select(Main_gene_name, frequency) %>%
+  distinct()
+print(vdfdisvarfreq)
+
+#Order frequency in descending order
+vdfdisordered <- vdfdisvarfreq[order(vdfdisvarfreq$frequency, decreasing = TRUE),]
+
+write.csv(vdfdisordered, "vdfdis_ordered.csv", row.names = FALSE)
+top5 <- head(vdfdisordered, 5)
+```
+
+##Problem 3b
+```{r}
+#Plot all disease variants across all genes 
+library(ggplot2)
+
+ggplot(vdfdisvarfreq) +
+  geom_point(aes(x = Main_gene_name, y = frequency), position=position_jitter(w=0.1, h=0)) +
+  xlab("Genes") +
+  ylab("Number of Variants") +
+  geom_hline(yintercept = 10.35, color = "red") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  ggtitle("Disease Variants by Gene") +
+  ggsave("Disease Variants by Gene.pdf")
+```
+
+##Problem 3c
+```{r}
+summary(vdfdisvarfreq)
+
+#line added to code chunk above
+```
+
+#Problem 4
+```{r}
+prob4 <- left_join(vdfdisordered, dfmerge_ordered, by=c("Main_gene_name" = "hmm_name"))
+
+#this does not make sense to me
+```
+
+#Problem 5
+```{r}
+#Question: How many people in the U.S. are descendant of colonial people of European royal descent?
+
+#650 colonists settled in American with traceable royal ancestry
+#approx half had descendants (325)
+#average number of surviving children per family in 17th century (1600s): 8, 60% child mortality rate
+#...in 18th century(1700s): 8: estimate approx 50%
+#...in 19th (1800s): 7, 35% child mortality rate
+#...in 20th (1900s): 3.5, 12% child mortality rate
+#...in 21st (2000s):1.8, .85% child mortality rate
+#we are only .21% into the 21st century
+
+the1600s <- ((650/2)*8)*.40
+the1700s <- (the1600s*8)*.50
+the1800s <- (the1700s*8)*.65
+the1900s <- (the1800s*7)*.88
+the2000s <- (the1900s*3.5)*.99
+#answer: 461,722 
+
+
+```
+

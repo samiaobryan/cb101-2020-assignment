@@ -1,0 +1,124 @@
+---
+title: "Assignment_2"
+author: "Samia OBryan"
+date: "11/25/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#Problem 1
+```{r airquality}
+data("airquality")
+airquality
+library(Hmisc)
+```
+
+##Problem 1a
+```{r}
+Pcorr <- cor(airquality, use="complete.obs", method = "pearson")
+Pcorr
+
+#whole <- rcorr(as.matrix(airquality))
+#whole$r
+
+#Data frame
+AQcorr <- function(Pcorr) {
+  ut <- upper.tri(Pcorr)
+  data.frame(
+    var1 = rownames(Pcorr)[row(Pcorr)[ut]],
+    var2 = rownames(Pcorr)[col(Pcorr)[ut]],
+    corr =(Pcorr)[ut]
+  )
+}
+
+ct <- AQcorr(Pcorr)
+ct
+
+#ordered by corr
+ctordered <- ct[order(ct$corr, decreasing = TRUE),]
+topct <- head(ctordered,6)
+
+#made unique ids to plot corr
+topct2 <- unite(topct, variable, c(var1, var2), sep = "_")
+
+```
+
+##Problem 1b
+```{r}
+library(ggplot2)
+
+#plot corr
+ggplot(topct2) +
+  geom_point(aes(x = variable, y = corr), position=position_jitter(w=0.1, h=0)) +
+  xlab("Variables") +
+  ylab("Pearson Correlation") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  labs(title = "Airquality Correlations", subtitle = R.square) +
+  ggsave("Airquality Correlations.pdf")
+
+lr_of_topct2 <- lm(corr ~ variable, data = topct2)
+R.square <- summary(lr_of_topct2)$r.squared
+#couldn't figure out the Rsquare stuff here
+#maybe I misunderstood what I was supposed to plot
+```
+
+#Problem 2
+```{r}
+#install.packages("seqinr")
+#library("seqinr")
+read.fasta(file = system.file("#fastafilehere", package = "seqinr"), 
+           seqtype = c("AA"), 
+           seq = getSeq(fastafile, gr[idx])
+           as.string = TRUE,
+           uniprot.aa("#sequenceIDhere"),
+           set.attributes = TRUE, 
+           seqonly = FALSE,
+           )
+
+#fastafile[c(which(names(fastafile) %in% subsetlist$id))]
+#idx = pmatch("gi|idhere")
+
+
+
+```
+
+#Problem 3
+```{r}
+data(BLOSUM62)
+BLOSUM62
+align <- read.fasta("ex_align.fas", as.string = TRUE, seqtype = "AA")
+align
+names(align)
+library(stringr)
+pattern <- "(\\S+)"
+matches <- str_match(string = names(align), pattern = pattern)
+matches
+ids <- matches[,2]
+ids
+
+subset_align <- align[ids %in% align] #something went wrong here, getting Named list() as output
+subset_align
+str(subset_align)
+
+write.fasta(subset_align, names = names(subset_align), file.out = "out_from_align.fas")
+
+library(Biostrings)
+library(seqinr)
+
+alignscore <- pairwiseAlignment(#the correct files go here 
+              substitutionMatrix = "BLOSUM62", 
+              gapOpening = 0, 
+              gapExtension = -2,
+              scoreOnly = FALSE,
+              type = "global")
+              }     
+
+```
+
+
+
+
